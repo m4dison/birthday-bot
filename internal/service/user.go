@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"log"
 	"sync"
 	"time"
@@ -9,9 +10,9 @@ import (
 	"github.com/m4dison/my-telegram-bot/internal/repository/memory"
 )
 
-// Add user in repo
-
-// Get user by name
+// gomock uber
+// go:generate
+// go generate ./...
 type UserService struct {
 	repo memory.UserRepository
 	mu   *sync.Mutex
@@ -24,16 +25,20 @@ func NewUserService(repo memory.UserRepository, mu *sync.Mutex) *UserService {
 	}
 }
 
-func (s *UserService) AddUser(user models.User) error {
+func (s *UserService) AddUser(ctx context.Context, user models.User) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.repo.AddUser(user)
+	return s.repo.AddUser(ctx, user)
 }
 
-func (s *UserService) CheckBirthdays() []models.User {
+func (s *UserService) CheckBirthdays(ctx context.Context) ([]models.User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	users := s.repo.GetAllUsers()
+	users, err := s.repo.GetAllUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	today := time.Now()
 	log.Printf("Todays time looks like this %v", today)
 
@@ -45,5 +50,5 @@ func (s *UserService) CheckBirthdays() []models.User {
 			usersWithBirthday = append(usersWithBirthday, user)
 		}
 	}
-	return usersWithBirthday
+	return usersWithBirthday, nil
 }

@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: botadmin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: botdatabase
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:

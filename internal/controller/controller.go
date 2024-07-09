@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -34,15 +35,18 @@ func (bc *BotController) Start() {
 			continue
 		}
 
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		if update.Message.IsCommand() {
-			bc.handleCommand(update.Message)
+			bc.handleCommand(ctx, update.Message)
 		} else {
-			bc.handleNonCommand(update.Message)
+			bc.handleNonCommand(ctx, update.Message)
 		}
 	}
 }
 
-func (bc *BotController) handleCommand(message *tgbotapi.Message) {
+func (bc *BotController) handleCommand(ctx context.Context, message *tgbotapi.Message) {
 	switch message.Command() {
 	case "adduser":
 		bc.pendingAddUser[message.Chat.ID] = struct{}{}
@@ -54,9 +58,9 @@ func (bc *BotController) handleCommand(message *tgbotapi.Message) {
 	}
 }
 
-func (bc *BotController) handleNonCommand(message *tgbotapi.Message) {
+func (bc *BotController) handleNonCommand(ctx context.Context, message *tgbotapi.Message) {
 	if _, waiting := bc.pendingAddUser[message.Chat.ID]; waiting {
-		bc.processAddUser(message)
+		bc.processAddUser(ctx, message)
 		delete(bc.pendingAddUser, message.Chat.ID)
 	} else {
 		msg := tgbotapi.NewMessage(message.Chat.ID, "I only understand commands")
@@ -64,7 +68,7 @@ func (bc *BotController) handleNonCommand(message *tgbotapi.Message) {
 	}
 }
 
-func (bc *BotController) processAddUser(message *tgbotapi.Message) {
+func (bc *BotController) processAddUser(ctx context.Context, message *tgbotapi.Message) {
 	parts := strings.Split(message.Text, " ")
 	if len(parts) != 2 {
 		msg := tgbotapi.NewMessage(message.Chat.ID, "Invalid format. Use: Name YYYY-MM-DD")
@@ -86,7 +90,7 @@ func (bc *BotController) processAddUser(message *tgbotapi.Message) {
 		ChatID:   message.Chat.ID, // Сохраняем chat_id
 	}
 
-	err = bc.userService.AddUser(user)
+	err = bc.userService.AddUser(ctx, user)
 	if err != nil {
 		msg := tgbotapi.NewMessage(message.Chat.ID, "Error adding user")
 		bc.bot.Send(msg)

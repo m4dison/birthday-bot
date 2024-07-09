@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -35,8 +36,12 @@ func NewNotifyService(bot BirthdayNotifier, userService *UserService) *NotifySer
 	}
 }
 
-func (s *NotifyService) NotifyAll() {
-	usersWithBirthday := s.userService.CheckBirthdays()
+func (s *NotifyService) NotifyAll(ctx context.Context) {
+	usersWithBirthday, err := s.userService.CheckBirthdays(ctx)
+	if err != nil {
+		log.Printf("Error checking birthdays: %v", err)
+		return
+	}
 
 	for _, user := range usersWithBirthday {
 		messageText := "С Днем рождения, " + user.Name + "!"
@@ -48,28 +53,25 @@ func (s *NotifyService) NotifyAll() {
 	}
 }
 
-func StartBirthdayNotifier(bot BirthdayNotifier, userService *UserService) {
+func StartBirthdayNotifier(ctx context.Context, bot BirthdayNotifier, userService *UserService) {
 	notifyService := NewNotifyService(bot, userService)
 
 	for {
 		now := time.Now()
-		// Устанавливаем время следующего запуска на 10:00
+
 		next := time.Date(now.Year(), now.Month(), now.Day(), 10, 0, 0, 0, now.Location())
 		if now.After(next) {
-			// Если текущее время уже после 10:00, устанавливаем следующий день
+
 			next = next.Add(24 * time.Hour)
 		}
 
-		// Вычисляем длительность до следующего запуска
 		duration := next.Sub(now)
 		log.Printf("Next birthday check in %v", duration)
 
-		// Ждем до следующего запуска
 		time.Sleep(duration)
 		// timer := time.NewTimer(duration)
 		// <-timer.C
 
-		// Выполняем уведомление о днях рождения
-		notifyService.NotifyAll()
+		notifyService.NotifyAll(ctx)
 	}
 }
