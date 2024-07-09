@@ -12,10 +12,14 @@ DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?ssl
 # Путь к директории с миграциями
 MIGRATIONS_DIR=migrations
 
-.PHONY: migrate-up
+.PHONY: migrate-up up down
 
 # Команда для накатывания миграций
 migrate-up:
-    migrate -database "$(DB_URL)" -path $(MIGRATIONS_DIR) up
+	migrate -database "$(DB_URL)" -path $(MIGRATIONS_DIR) up
 
+up:
+	docker-compose up -d
 
+down:
+	docker-compose down
