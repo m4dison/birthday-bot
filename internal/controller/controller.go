@@ -25,27 +25,33 @@ func NewBotController(bot *tgbotapi.BotAPI, userService *service.UserService) *B
 	}
 }
 
-func (bc *BotController) Start() {
+func (bc *BotController) Start(ctx context.Context) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
 	updates := bc.bot.GetUpdatesChan(u)
 
-	for update := range updates {
-		if update.Message == nil { // игнорируем любые не Message обновления
-			continue
-		}
-
-		go func(update tgbotapi.Update) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-
-			if update.Message.IsCommand() {
-				bc.handleCommand(update.Message)
-			} else {
-				bc.handleNonCommand(ctx, update.Message)
+	for {
+		select {
+		case update := <-updates:
+			if update.Message == nil { // игнорируем любые не Message обновления
+				continue
 			}
-		}(update)
+
+			go func(update tgbotapi.Update) {
+				ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+				defer cancel()
+
+				if update.Message.IsCommand() {
+					bc.handleCommand(update.Message)
+				} else {
+					bc.handleNonCommand(ctx, update.Message)
+				}
+			}(update)
+		case <-ctx.Done():
+			log.Println("BotController: received shutdown signal")
+			return
+		}
 	}
 }
 

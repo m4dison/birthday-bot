@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"database/sql"
-
 	"log"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -54,8 +55,30 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go botController.Start()
-	go service.StartBirthdayNotifier(ctx, botAdapter, userService)
+	// Создаем канал для сигналов
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	select {}
+	// Канал для завершения работы горутин
+	done := make(chan struct{})
+
+	go func() {
+		botController.Start(ctx)
+		done <- struct{}{}
+	}()
+
+	go func() {
+		service.StartBirthdayNotifier(ctx, botAdapter, userService)
+		done <- struct{}{}
+	}()
+
+	sig := <-sigChan
+	log.Printf("Received signal: %s. Shutting down gracefully...", sig)
+	cancel()
+
+	// Ждем завершения всех горутин
+	<-done
+	<-done
+
+	log.Println("Application stopped gracefully")
 }

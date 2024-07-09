@@ -61,17 +61,19 @@ func StartBirthdayNotifier(ctx context.Context, bot BirthdayNotifier, userServic
 
 		next := time.Date(now.Year(), now.Month(), now.Day(), 10, 0, 0, 0, now.Location())
 		if now.After(next) {
-
 			next = next.Add(24 * time.Hour)
 		}
 
 		duration := next.Sub(now)
 		log.Printf("Next birthday check in %v", duration)
 
-		time.Sleep(duration)
-		// timer := time.NewTimer(duration)
-		// <-timer.C
-
-		notifyService.NotifyAll(ctx)
+		select {
+		case <-time.After(duration):
+			// Выполняем уведомления о днях рождения
+			notifyService.NotifyAll(ctx)
+		case <-ctx.Done():
+			log.Println("BirthdayNotifier: received shutdown signal")
+			return
+		}
 	}
 }
