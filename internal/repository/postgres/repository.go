@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/m4dison/my-telegram-bot/internal/models"
 	"github.com/m4dison/my-telegram-bot/internal/repository/memory"
@@ -29,9 +30,27 @@ func NewUserStore(dataSourceName string) (*UserStore, error) {
 }
 
 func (s *UserStore) AddUser(ctx context.Context, user models.User) error {
+	// Начинаем транзакцию
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %v", err)
+	}
+
+	// Вставляем данные в таблицу users
 	query := `INSERT INTO users (name, birthday) VALUES ($1, $2)`
-	_, err := s.db.ExecContext(ctx, query, user.Name, user.Birthday)
-	return err
+	_, err = tx.ExecContext(ctx, query, user.Name, user.Birthday)
+	if err != nil {
+		tx.Rollback() // Если произошла ошибка, откатываем транзакцию
+		return fmt.Errorf("could not insert user: %v", err)
+	}
+
+	// Фиксируем транзакцию
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("could not commit transaction: %v", err)
+	}
+
+	return nil
 }
 
 func (s *UserStore) GetAllUsers(ctx context.Context) ([]models.User, error) {

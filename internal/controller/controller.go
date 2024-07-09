@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"log"
 	"strings"
 	"time"
 
@@ -35,18 +36,20 @@ func (bc *BotController) Start() {
 			continue
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+		go func(update tgbotapi.Update) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
 
-		if update.Message.IsCommand() {
-			bc.handleCommand(ctx, update.Message)
-		} else {
-			bc.handleNonCommand(ctx, update.Message)
-		}
+			if update.Message.IsCommand() {
+				bc.handleCommand(update.Message)
+			} else {
+				bc.handleNonCommand(ctx, update.Message)
+			}
+		}(update)
 	}
 }
 
-func (bc *BotController) handleCommand(ctx context.Context, message *tgbotapi.Message) {
+func (bc *BotController) handleCommand(message *tgbotapi.Message) {
 	switch message.Command() {
 	case "adduser":
 		bc.pendingAddUser[message.Chat.ID] = struct{}{}
@@ -92,6 +95,7 @@ func (bc *BotController) processAddUser(ctx context.Context, message *tgbotapi.M
 
 	err = bc.userService.AddUser(ctx, user)
 	if err != nil {
+		log.Printf("Error adding user: %v", err) // Логирование ошибки
 		msg := tgbotapi.NewMessage(message.Chat.ID, "Error adding user")
 		bc.bot.Send(msg)
 		return
