@@ -7,18 +7,17 @@ import (
 	"time"
 
 	"github.com/m4dison/my-telegram-bot/internal/models"
-	"github.com/m4dison/my-telegram-bot/internal/repository/memory"
 )
 
 // gomock uber
 // go:generate
 // go generate ./...
 type UserService struct {
-	repo memory.UserRepository
+	repo UserRepository
 	mu   *sync.Mutex
 }
 
-func NewUserService(repo memory.UserRepository, mu *sync.Mutex) *UserService {
+func NewUserService(repo UserRepository, mu *sync.Mutex) *UserService {
 	return &UserService{
 		repo: repo,
 		mu:   mu,

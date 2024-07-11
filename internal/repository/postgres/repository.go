@@ -6,10 +6,10 @@ import (
 	"fmt"
 
 	"github.com/m4dison/my-telegram-bot/internal/models"
-	"github.com/m4dison/my-telegram-bot/internal/repository/memory"
+	"github.com/m4dison/my-telegram-bot/internal/service"
 )
 
-var _ memory.UserRepository = &UserStore{}
+var _ service.UserRepository = &UserStore{}
 
 type UserStore struct {
 	db *sql.DB

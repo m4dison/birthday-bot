@@ -55,12 +55,11 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Создаем канал для сигналов
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Канал для завершения работы горутин
 	done := make(chan struct{})
+	shutdownComplete := make(chan struct{})
 
 	go func() {
 		botController.Start(ctx)
@@ -72,13 +71,23 @@ func main() {
 		done <- struct{}{}
 	}()
 
-	sig := <-sigChan
-	log.Printf("Received signal: %s. Shutting down gracefully...", sig)
-	cancel()
+	go func() {
+		sig := <-sigChan
+		log.Printf("Received signal: %s. Shutting down gracefully...", sig)
+		cancel()
 
-	// Ждем завершения всех горутин
-	<-done
-	<-done
+		timer := time.NewTimer(15 * time.Second)
+		select {
+		case <-done:
+			log.Println("All services stopped gracefully within the timeout.")
+		case <-timer.C:
+			log.Println("Timeout reached. Checking status of services...")
+		}
 
+		close(shutdownComplete)
+	}()
+
+	// Ждем завершения всех горутин или тайм-аута
+	<-shutdownComplete
 	log.Println("Application stopped gracefully")
 }
