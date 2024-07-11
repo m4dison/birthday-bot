@@ -77,11 +77,21 @@ func main() {
 		cancel()
 
 		timer := time.NewTimer(15 * time.Second)
-		select {
-		case <-done:
-			log.Println("All services stopped gracefully within the timeout.")
-		case <-timer.C:
-			log.Println("Timeout reached. Checking status of services...")
+		count := 0
+
+	loop:
+		for {
+			select {
+			case <-done:
+				count++
+				if count == 2 {
+					log.Println("All services stopped gracefully within the timeout.")
+					break loop
+				}
+			case <-timer.C:
+				log.Println("Timeout reached. Checking status of services...")
+				break loop
+			}
 		}
 
 		close(shutdownComplete)
